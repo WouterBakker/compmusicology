@@ -1,6 +1,12 @@
 # compmusicology
 Project repository for Computational Musicology course
 
+
+During this week, I have discovered some methods to extend the music analysis beyond just Spotify. This has also led me to change my corpus. Since 2014, I have been keeping track of nearly every song I have listened to. I did this using a website called LastFM. Music I have listened to using desktop programs like iTunes and MusicBee are included. Spotify has a function built in that allows all the music that is played to be synched to LastFM as well. Recording a play is called scrobbling, and this way I have “scrobbled” more than 118.000 played songs since around April 2014, nearly 6 years. Using a package called “scrobbler” I have imported all my scrobbles to R, and saved it as a .csv file.  
+
+
+
+
 The corpus that I chose to analyse were two playlists I have created: One playlist with songs that I used to listen to mostly in 2017, and another playlist of music that I listen to regularly right now. The songs were specifically picked to also be somewhat playable to other people. 
 
 The older playlist is a collection of mostly indie songs that I collected throughout the years prior to creating the playlists, and consists mostly of well-known songs within that genre. The newer playlist is much broader, and contains songs of plenty more genres. There is a small degree of overlap between both playlists. The newer playlist should contain less well-known songs, since over the years I have started to dig deeper into music.
