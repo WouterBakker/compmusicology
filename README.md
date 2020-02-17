@@ -20,8 +20,8 @@ Last FM, and with an R script he analysed the data. All the code he used
 is published online, and a rundown of his code [can be found
 here](https://andrewlouiswalker.com/2019/12/08/music-listening-history-analysis-through-spotify-last-fm-and-genius-apis-for-music-and-delirium-study-in-pediatric-intensive-care-unit/).
 
-Starting out with some preliminary settings. Previously, I have already
-coverted the date into a proper date format, and extracted for every
+Starting out with some preliminary settings. Previously, I have 
+converted the date into a proper date format, and extracted for every
 song the year, month, day, and hour the song was played. My research
 question will be focussed on how my music taste has developed over this
 period of time, so these time metrics will come in handy later on.
