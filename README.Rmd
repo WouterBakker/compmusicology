@@ -3,9 +3,11 @@ title: "week 2 homework"
 author: "Wouter Bakker"
 date: "16-2-2020"
 output: 
-  html_document: 
+  github_document: 
     code_folding: hide
+    storyboard: true
 ---
+
 
 During this week, I have discovered some methods to extend the music analysis beyond just Spotify. This has also led me to change my corpus. Since 2014, I have been keeping track of nearly every song I have listened to. I did this using a website called Last FM. Music I have listened to using desktop programs like iTunes and MusicBee are all included, as well as all my Spotify plays. Recording a play is called scrobbling, and this way I have “scrobbled” more than 118.000 played songs since around April 2014, a period of nearly 6 years. Using a package called “scrobbler” I have imported all my scrobbles to R, and saved it as a .csv file. 
 The goal is to link all my scrobbles to the corresponding Spotify data. Luckily, a researcher at the University of Florida (Andrew Walker, 2019), has done research into patient-directed music interventions. For this, he linked patient's Spotify accounts to Last FM, and with an R script he analysed the data. All the code he used is published online, and a rundown of his code [can be found here](https://andrewlouiswalker.com/2019/12/08/music-listening-history-analysis-through-spotify-last-fm-and-genius-apis-for-music-and-delirium-study-in-pediatric-intensive-care-unit/).  
