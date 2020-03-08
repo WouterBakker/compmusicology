@@ -1,0 +1,422 @@
+---
+title: "Untitled"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(textclean)
+library(plotly)
+library(spotifyr)
+library(compmus)
+library(shiny)
+
+
+id = "b4a9a424acf446bfa03da5c30747ea4c"
+id_sec = "4b1569bfdd9c4a2fb69f941d89e1f29a"
+
+# Set Spotify access variables (every time)
+
+Sys.setenv(SPOTIFY_CLIENT_ID = id)
+Sys.setenv(SPOTIFY_CLIENT_SECRET = id_sec)
+
+
+
+#Tab of artists, albums and tracks, weekdays, dates etc.
+tablate = function(column, FUN) {
+  df = as.data.frame(table(column))
+  df[order(df[,2], decreasing = FUN),]
+} #function for making tab out of given data, turning it into a dataframe and sorting it by frequency
+
+setwd("C:/Users/Gebruiker/OneDrive/Psychologie/Jaar 3/Computational Musicology/Last FM")
+scrobbles = read.csv("scrobble_features.csv")
+scrobbles$asdate = as.Date(scrobbles$date)
+scrobbles = data.frame(scrobbles[order(scrobbles$asdate),])
+scrobbles = data.frame(scrobbles, year_month = format(scrobbles$asdate, format = "%y-%m"))
+number = as.character(0:11)
+tokey = c("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
+scrobbles$keyname = mgsub(scrobbles$key, number, tokey)
+
+
+tab1 = tablate(scrobbles[scrobbles$year == 2014,]$keyname, F)
+tab2 = tablate(scrobbles[scrobbles$year == 2019,]$keyname, F)
+tab1$prop = tab1$Freq / sum(tab1$Freq)
+tab2$prop = tab2$Freq / sum(tab2$Freq)
+
+
+```
+
+Week 10: Chordograms and keygrams over time {.storyboard}
+===================================== 
+
+
+### Histogram of they of songs listened in 2015 and 2019
+    
+    
+```{r}
+
+#Histogram of keys in 2014 and 2019
+key1 = scrobbles[scrobbles$year == 2015,]$key
+key2 = scrobbles[scrobbles$year == 2019,]$key
+
+f <- list(
+  family = "Courier New, monospace",
+  size = 18,
+  color = "#7f7f7f")
+
+x <- list(
+  title = "Key",
+  titlefont = f,
+  tickmode = "array",
+  nticks = 12,
+  tickvals = c(0:11),
+  ticktext = tokey)
+
+y <- list(
+  title = "Proportion",
+  titlefont = f)
+
+fig <- plot_ly(alpha = 0.6, type = "histogram", histnorm = "probability") 
+fig <- fig %>% 
+  add_histogram(x = key1, name = "2015") %>%
+  add_histogram(x = key2, name = "2019") %>% 
+  layout(barmode = "", xaxis = x, yaxis = y)
+
+fig
+
+
+
+
+```
+    
+    
+***
+
+In my portfolio, I want to see how my music listening has changed over the years. To analyse this, I have a corpus that consists of the songs I have listened to since 2014. 
+One thing that might have changed is the key of the songs that I have listened to. To analyse this, I made a histogram of all the keys of the songs in 2015, my final year of high school, and 2019, when I was halfway in my second year of Psychology. 
+
+In the histogram, you can see for every key what its proportion is to all of the keys of the songs that I listened to in 2015 and 2019. 
+It seems that D is the most popular, and D# the least. There are slight differences in key between the years, but most noticably, it seems I am listening to far fewer songs in the key of A. Why is this?
+
+To figure this out, I made a table of the artists I listened to in each year that wrote songs in A, and looked at the artists with the highest frequency. Not to my surprise, most songs in A were written by artist like Mac DeMarco, Beach House, Grizzly Bear, and The Black Keys, which are all alternative/ indie artists using guitars. The A chord is popular in songs written on guitar, since it can be played as an open chord, and it goes well with many other open chords. Since 2015, I have started listening to a lot less guitar-centered music, which might explain why I am also listening to fewer songs in the key of A. 
+
+
+
+### Tempo mean and standard deviation
+
+
+```{r}
+#Takes top 15 tracks of 2015 and 2019
+y2015 = scrobbles[scrobbles$year == 2015,]
+y2019 = scrobbles[scrobbles$year == 2019,]
+
+songs2015 = tablate(y2015$title, T)
+songs2019 = tablate(y2019$title, T)
+
+top15 = y2015[match(songs2015$column[1:15], y2015$title),]
+top19 = y2019[match(songs2019$column[1:15], y2019$title),]
+
+for(i in 1:15) top15$track.uri[i] = get_track_audio_features(top15$id[i])$uri #adds uri to df
+for(i in 1:15) top19$track.uri[i] = get_track_audio_features(top19$id[i])$uri
+
+#get low-level audio analysis
+first = top15 %>% add_audio_analysis()
+second = top19 %>% add_audio_analysis()
+
+
+bothyears <-
+    first %>% mutate(year = 2015) %>%
+    bind_rows(second %>% mutate(year = 2019))
+
+bothyears$year = as.character(unlist(bothyears$year))
+
+bothyears %>% 
+    mutate(
+        sections = 
+            map(
+                sections, 
+                summarise_at, 
+                vars(tempo, loudness, duration), 
+                list(section_mean = mean, section_sd = sd))) %>% 
+    unnest(sections) %>%
+    ggplot(
+        aes(
+            x = tempo, 
+            y = tempo_section_sd, 
+            colour = year, 
+            alpha = loudness)) +
+    geom_point(aes(size = duration / 60)) + 
+    geom_rug() + 
+    theme_minimal() +
+    ylim(0, 5) + 
+    labs(
+        x = 'Mean Tempo (bpm)', 
+        y = 'SD Tempo', 
+        colour = 'Year', 
+        size = 'Duration (min)', 
+        alpha = 'Volume (dBFS)')
+```
+
+
+***
+
+For this plot, I used my top 15 songs from 2015 and 2019.
+Since I had to use the data I fetched from LastFM, I had a hard time getting the data right so it would work with the compmus package. I managed to get it right however, and the resulting plot is quite interesting.
+
+Here you can see the mean tempo plotted against the SD of tempo, colour indicating tempo, size indicating song duration, and opacity indicating loudness.
+There seem to be quite large differences between 2015 and 2019.
+First of all, the range of tempo is much larger in 2019: it spans from ~70 to ~160, while in 2015 the tempo is clustered around 100. This indicates that in 2019, my music taste has become more varied. This can also be seen in song duration and loudness: in 2015 they seem to be similar, while in 2019 it seems to vary more.
+
+Interestingly, the standard deviation of tempo seems to increase with tempo. Does this mean that higher tempo songs also have a higher deviation in tempo? I have no clue. 
+
+
+Overview of the songs I have listened to per year
+====================================
+
+```{r}
+cols = c(9, 6, 11, 12, 32, 14)
+all = scrobbles[,cols]
+all2 = paste(all$artist, all$title, sep = "- ")
+
+
+vier = subset(all, year == 2014)
+vier2 = paste(vier$artist, vier$title, sep = "- ")
+
+vijf = subset(all, year == 2015)
+vijf2 = paste(vijf$artist, vijf$title, sep = "- ")
+
+zes = subset(all, year == 2016)
+zes2 = paste(zes$artist, zes$title, sep = "- ")
+
+zeven = subset(all, year == 2017)
+zeven2 = paste(zeven$artist, zeven$title, sep = "- ")
+
+acht = subset(all, year == 2018)
+acht2 = paste(acht$artist, acht$title, sep = "- ")
+
+negen = subset(all, year == 2019)
+negen2 = paste(negen$artist, negen$title, sep = "- ")
+
+twin = subset(all, year == 2020)
+twin2 = paste(twin$artist, twin$title, sep = "- ")
+
+taball = tablate(all2, T)
+tabvier = tablate(vier2, T)
+tabvijf = tablate(vijf2, T)
+tabzes = tablate(zes2, T)
+tabzeven = tablate(zeven2, T)
+tabacht = tablate(acht2, T)
+tabnegen = tablate(negen2, T)
+tabtwin = tablate(twin2, T)
+
+
+
+ui <- fluidPage(
+  title = "Examples of DataTables",
+  sidebarLayout(
+    sidebarPanel(
+      conditionalPanel(
+        'input.dataset === "tabtwin"',
+      ),
+      conditionalPanel(
+        'input.dataset === "tabnegen"',
+      ),
+      conditionalPanel(
+        'input.dataset === "tabacht"',
+      ),
+      conditionalPanel(
+        'input.dataset === "tabzeven"',
+      ),
+      conditionalPanel(
+        'input.dataset === "tabzes"',
+      ),
+      conditionalPanel(
+        'input.dataset === "tabvijf"',
+      ),
+      conditionalPanel(
+        'input.dataset === "tabvier"',
+      ),
+      conditionalPanel(
+        'input.dataset === "taball"',
+      )
+    ),
+    mainPanel(
+      tabsetPanel(
+        id = 'dataset',
+        tabPanel("2020", DT::dataTableOutput("mytable1")),
+        tabPanel("2019", DT::dataTableOutput("mytable2")),
+        tabPanel("2018", DT::dataTableOutput("mytable3")),
+        tabPanel("2017", DT::dataTableOutput("mytable4")),
+        tabPanel("2016", DT::dataTableOutput("mytable5")),
+        tabPanel("2015", DT::dataTableOutput("mytable6")),
+        tabPanel("2014", DT::dataTableOutput("mytable7")),
+        tabPanel("All", DT::dataTableOutput("mytable8"))
+      )
+    )
+  )
+)
+
+server <- function(input, output) {
+  
+  output$mytable1 <- DT::renderDataTable({
+    DT::datatable(tabtwin)
+  })
+  
+  
+  output$mytable2 <- DT::renderDataTable({
+    DT::datatable(tabnegen)
+  })
+  
+  output$mytable3 <- DT::renderDataTable({
+    DT::datatable(tabacht)
+  })
+  
+  output$mytable4 <- DT::renderDataTable({
+    DT::datatable(tabzeven)
+  })
+  
+  output$mytable5 <-  DT::renderDataTable({
+    DT::datatable(tabzes)
+  })
+  
+  output$mytable6 <-  DT::renderDataTable({
+    DT::datatable(tabvijf)
+  })
+  
+  output$mytable7 <- DT::renderDataTable({
+    DT::datatable(tabvier)
+  })
+
+  output$mytable8 <-  DT::renderDataTable({
+    DT::datatable(taball)
+  })
+}
+
+
+shinyApp(ui, server)
+
+
+```
+
+
+
+Previous weeks (needs revision) {.storyboard}
+=====================================     
+
+### A small introduction page
+
+
+```{r}
+tab.art = tablate(scrobbles$artist, T)
+colnames(tab.art) = c("Artist", "Songs played")
+tab.artitle = tablate(paste(scrobbles$artist, scrobbles$title, sep =  "- "), T)
+colnames(tab.artitle) = c("Artist, title", "Number of times played")
+rownames(tab.artitle) = 1:nrow(tab.artitle)
+
+DT::datatable(tab.artitle, options = list(
+  bPaginate = FALSE
+))
+
+```
+
+
+***
+
+Since 2014, I have been keeping track of nearly every song I have listened to. I did this using a website called Last FM. Music I have listened to using desktop programs like iTunes and MusicBee are all included, as well as all my Spotify plays. Recording a play is called scrobbling, and this way I have “scrobbled” more than 118.000 played songs since around April 2014, a period of nearly 6 years. Using a package called “scrobbler” I have imported all my scrobbles to R, and saved it as a .csv file. 
+
+Last week, my goal was to link these scrobbles to the Spotify features. Using the code by Andrew Walker that [can be found here](https://andrewlouiswalker.com/2019/12/08/music-listening-history-analysis-through-spotify-last-fm-and-genius-apis-for-music-and-delirium-study-in-pediatric-intensive-care-unit/), after some tweaking, I finally managed to do so! Using the Title and Artist from the scrobbles, the ID from Spotify is fetched through the API, that can be used to fetch the features, a process that took about 6 hours in total. This has resulted in very interesting data, that I will try to visualize the coming weeks. 
+
+I have been collecting data on my music listening habits since 2014, and I now have a dataset with timestamped songs and the corresponding Spotify features. How has time influenced what music I listen to?
+
+To show you the data I have collected over the years, a table with all the songs, and the how often they have been played. 
+
+
+### Last FM: Average number of songs listened to per day over time
+
+```{r}
+mean = numeric()
+for (i in 1:nrow(scrobbles)){
+  mean[i] = i / as.numeric(scrobbles$asdate[i] - (scrobbles$asdate[1]))
+}
+mean[mean == Inf] = 0
+
+df = data.frame(y = mean[1000:length(mean)], x = scrobbles$asdate[1000:length(mean)])
+
+ggplot(data = df, aes(x = x, y = y)) + geom_smooth() + labs(title = "Average number of songs played per day since 2014") +
+  xlab("Date") + ylab("Average number of songs")
+
+```
+
+*** 
+
+Before going into the Spotify features, it is useful to take a look at some generic plots of my music listening habits, to get an idea of the data. One aspect of music listening habits is how much music you listen to. So, I calculated the amount of music I listen to per day, for each date. This is done by dividing the amount of songs listened to by the amount of days that have passed.
+
+As can be seen in plot 1, the amount of music I listen to has been increasing over time. This can be a confounder when analysing how my music listening has changed, because the samples might not be comparable. However, I think for this project this will not be a problem, but it is something to keep in mind. 
+
+
+### Last FM: average number of songs listened to per hour
+
+```{r}
+
+
+total.days = scrobbles$asdate[nrow(scrobbles)] - scrobbles$asdate[1]
+
+tab.hour = tablate(scrobbles$hour, F)
+tab.hour = data.frame(tab.hour, mean = tab.hour[,2]/as.numeric(total.days))
+
+ggplot(tab.hour, aes(x = as.numeric(column), y = mean)) + 
+  geom_smooth(span = 0.3) + geom_point() + 
+  labs(title = "Average number of songs listens for each hour of the day") + 
+  ylab("Average number of songs") + xlab("Hour of the day") +
+  scale_x_continuous(limits = c(1, 24), expand = c(0,0))
+```
+
+*** 
+
+Another interesting thing to show before getting into the Spotify features, is the average number of songs listened to per hour, shown in plot 2. As you can see, the music listening data reflects my living patterns well: At night I listen to the least music, and in the morning it steadily increases. There is a small dip around 18 at dinnertime, and it increases again after.
+
+
+### Spotify: Danceability per month
+
+```{r}
+boombie = aggregate(scrobbles[,20:30], list(scrobbles$month), mean)
+
+ggplot(boombie, aes(x = Group.1, y = danceability)) + geom_smooth() + geom_point() +
+    scale_x_continuous(limits = c(1, 12), expand = c(0,0))
+
+```
+
+***
+
+In class, prof. Burgoyne showed us a plot of the average danceability per season. In the winter people listened to less danceable music, and in the summer much more. I wondered if this was replicable with my own music listening data. As you can see, it is! There is a dip in the months after January, and a peak in August. Interesting to note that my music listening habits are influenced by the time of the year, and that this is can actually be seen in the data. This might tell me something about how useful my data and the corresponding Spotify features will be to answer my research questions. 
+
+### Spotify: How has my music listening changed over time?
+
+
+
+```{r}
+boomb = aggregate(scrobbles[,20:30], list(scrobbles$year_month), mean)
+colnames(boomb)[1] = "date"
+
+cors = data.frame(Correlation = apply(boomb[,2:12], 2, cor, y = 1:nrow(boomb)))
+cors = data.frame(cors, Features = row.names(cors))
+cors = cors[order(cors[,1]),]
+rownames(cors) = 1:nrow(cors)
+
+DT::datatable(cors, options = list(
+  bPaginate = FALSE))
+
+```
+
+
+
+***
+
+Now on to the real data. My research is focussed around the following question: How has my music listening changed over time? In order for this question to even be relevant, it means that my music listening has to have changed over time. On top of that, this also has to be reflected in the data. This is why I decided to calculate the correlation between time and the Spotify features. Since a correlation spans from -1 to 1, many of the correlations are very high. This means that a lot of these features have changed by a lot over time, which means my music listening has changed a lot. I had hoped to see this, since it looks very promising for further analyses!
+
